@@ -1,0 +1,4 @@
+* user(id, first_name, last_name, password, email, birthday)
+* message(id, text, from_id, to_id, time_sent[date with seconds], is_seen[true or false], is_group[true or false])
+* group(id, name, users_id[list], is_open[true or false])  # every conversation is a group between two people
+* reaction(id, msg_id, value[some character])
