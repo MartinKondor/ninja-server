@@ -8,8 +8,7 @@ const expressValidator = require("express-validator");
 
 
 dotenv.config({ path: "./config.env" });
-const env = process.env;
-const port = env.PORT || 3000;
+const port = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
@@ -17,6 +16,7 @@ app.use(expressValidator());
 
 // Get routes
 app.use(require("./routes/user"));
+app.use(require("./routes/group"));
 /*
 app.use((req, res, next) => {
   next(createError(404));

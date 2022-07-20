@@ -6,6 +6,83 @@ const ObjectId = require("mongodb").ObjectId;
 const wrongDBMsg = "Sorry! There is something wrong with our database.";
 
 
+userRoutes.route("/user/settings").post((req, res, next) => {
+  req
+    .checkBody("id", "...")
+    .isLength({ min: 3 });
+  req
+    .checkBody("first_name", "The First Name field cannot be empty.")
+    .isLength({ min: 3 });
+  req
+    .checkBody("last_name", "The Last Name field cannot be empty.")
+    .isLength({ min: 3 });
+  req
+    .checkBody("old_password", "You must type in your old Password to make changes happen.")
+    .isLength({ min: 3 });
+
+  const errors = req.validationErrors();
+  if (errors) {
+    return res.json({appStatus: 0, msg: errors[0].msg});
+  }
+
+  const updatedColumns = {
+    first_name: req.body.first_name,
+    last_name: req.body.last_name
+  };
+
+  if (req.body.new_password) {
+    bcrypt.genSalt(10, (err, salt) => {
+      bcrypt.hash(req.body.new_password, salt, (err, hash) => {
+        updatedColumns['new_password'] = hash;
+      });
+    });
+  }
+
+  let db_connect = dbo.getDb();
+  db_connect
+    .collection("user")
+    .findOne({ _id: ObjectId(req.body.id) }, (err, result) => {
+        if (err) {
+          res.json({appStatus: 0, msg: wrongDBMsg});
+          return next(err);
+        } 
+        if (!result) {
+            res.json({appStatus: 0, msg: "No user found with these credentials"});
+            return next(err);
+        }
+        else {
+          const updateUser = (err) => {
+            if (err) {
+                res.json({appStatus: 0, msg: wrongDBMsg});
+                return next(err);
+            }
+            return res.json({appStatus: 1});
+          }
+          const checkPwd = (err, isMatch) => {
+              if (err) {
+                res.json({appStatus: 0, msg: "Invalid password"});
+                return next(err);
+              }
+              if (isMatch) {
+                // Matched with the input password
+                return db_connect
+                  .collection("user")
+                  .updateOne(
+                    { _id: ObjectId(req.body.id) },
+                    { $set: updatedColumns },
+                    updateUser
+                  );
+              }
+              else {
+                res.json({appStatus: 0, msg: "Wrong password"});
+              }
+          };
+          bcrypt.compare(req.body.old_password, result.password, checkPwd);
+        }
+        
+    });
+});
+
 userRoutes.route("/user").get((req, res, next) => {
   let db_connect = dbo.getDb();
   db_connect
