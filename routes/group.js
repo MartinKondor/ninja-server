@@ -40,25 +40,21 @@ const getUserById = (db_connect, id, callback) => {
         .findOne({ _id: id }, callback);
 };
 
-groupRoutes.route("/group").post((req, res, next) => {
+groupRoutes.route("/group/friends").post((req, res, next) => {
     let db_connect = dbo.getDb();
+
     db_connect
         .collection("group")
-        .find({users: { $in: [ObjectId(req.body.id)] }})
-        .toArray((err, result) => {
+        .find({users: { $in: [new ObjectId(req.body.id)] }})
+        .toArray((err, groups) => {
             if (err) {
                 res.json({appStatus: 0, msg: wrongDBMsg});
                 return next(err);
-            } 
-            return res.json({appStatus: 1, result: result.map((e) => {
-                return getUserById(db_connect, e._id, (err, result2) => {
-                    console.log(result2);
+            }
 
-                    if (err || !result2) {
-                        return null;
-                    }
-                    return result2;
-                });
+            return res.json({appStatus: 1, result: groups.map((e) => {
+                let fid = new ObjectId(e.users[0])==new ObjectId(req.body.id) ? e.users[0] : e.users[1];
+                return fid;
             })});
         });
 });
@@ -102,7 +98,7 @@ groupRoutes.route("/group/add_friend").post((req, res, next) => {
                     }
 
                     // Found both ids
-                    return addGroup(db_connect, [ObjectId(u1._id), ObjectId(u2._id)], (err, result) => {
+                    return addGroup(db_connect, [new ObjectId(u1._id), new ObjectId(u2._id)], (err, result) => {
                         if (err) {
                             res.json({appStatus: 0, msg: wrongDBMsg});
                             return next(err);

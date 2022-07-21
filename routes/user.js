@@ -6,6 +6,7 @@ const ObjectId = require("mongodb").ObjectId;
 const wrongDBMsg = "Sorry! There is something wrong with our database.";
 
 
+// List settings for user
 userRoutes.route("/user/settings").post((req, res, next) => {
   req
     .checkBody("id", "...")
@@ -41,7 +42,7 @@ userRoutes.route("/user/settings").post((req, res, next) => {
   let db_connect = dbo.getDb();
   db_connect
     .collection("user")
-    .findOne({ _id: ObjectId(req.body.id) }, (err, result) => {
+    .findOne({ _id: new ObjectId(req.body.id) }, (err, result) => {
         if (err) {
           res.json({appStatus: 0, msg: wrongDBMsg});
           return next(err);
@@ -68,7 +69,7 @@ userRoutes.route("/user/settings").post((req, res, next) => {
                 return db_connect
                   .collection("user")
                   .updateOne(
-                    { _id: ObjectId(req.body.id) },
+                    { _id: new ObjectId(req.body.id) },
                     { $set: updatedColumns },
                     updateUser
                   );
@@ -83,7 +84,8 @@ userRoutes.route("/user/settings").post((req, res, next) => {
     });
 });
 
-userRoutes.route("/user").get((req, res, next) => {
+// List all users
+userRoutes.route("/users").get((req, res, next) => {
   let db_connect = dbo.getDb();
   db_connect
     .collection("user")
@@ -95,6 +97,29 @@ userRoutes.route("/user").get((req, res, next) => {
         } 
         res.json({appStatus: 1, ...result});
     });
+});
+
+// Find user by id
+userRoutes.route("/user").post((req, res, next) => {
+  req
+    .checkBody("id", "...")
+    .isLength({ min: 3 });
+  
+  const errors = req.validationErrors();
+  if (errors) {
+    return res.json({appStatus: 0, msg: errors[0].msg});
+  }
+
+  let db_connect = dbo.getDb();
+  db_connect
+    .collection("user")
+    .findOne({ _id: new ObjectId(req.body.id) }, (err, result) => {
+      if (err) {
+        res.json({appStatus: 0, msg: wrongDBMsg});
+        return next(err);
+      } 
+      res.json({appStatus: 1, result: result});
+  });
 });
 
 userRoutes.route("/user/signin").post((req, res, next) => {
@@ -232,7 +257,7 @@ userRoutes.route("/user/signup").post((req, response, next) => {
 // This section will help you update a record by id.
 userRoutes.route("/user/update/:id").post((req, response, next) => {
   let db_connect = dbo.getDb(); 
-  let myquery = { _id: ObjectId( req.params.id )}; 
+  let myquery = { _id: new ObjectId( req.params.id )}; 
   let newvalues = {   
     $set: {
       first_name: req.body.first_name,
