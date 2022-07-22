@@ -1,7 +1,7 @@
 # 🥷 ninja-server
 
 [![Project Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/MartinKondor/ninja-server/)
-[![version](https://img.shields.io/badge/version-v0.1-red.svg)](https://github.com/MartinKondor/ninja-server)
+[![version](https://img.shields.io/badge/version-v0.2-red.svg)](https://github.com/MartinKondor/ninja-server)
 [![GitHub Issues](https://img.shields.io/github/issues/MartinKondor/ninja-server.svg)](https://github.com/MartinKondor/ninja-server/issues)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)
 [![License](https://img.shields.io/badge/license-BSD-brightgreen.svg)](https://opensource.org/licenses/BSD)

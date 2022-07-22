@@ -1,0 +1,35 @@
+
+user.js:
+    - /user/settings
+        * Save user settings
+        * POST params:
+            - id
+            - first_name
+            - last_name
+            - old_password
+    - /user
+        * Send a user object by id as response
+        * POST params:
+            - id
+    - /user/signin
+        * Authenticate the user
+        * POST params:
+            - email
+            - password
+    - /user/signup
+        * Register user in the database
+        * POST params
+            - first_name
+            - last_name
+            - password
+            - password2
+            - email
+            - birthday
+
+group.js
+    - /group/friends
+        - Get every FRIEND ID's with whom the current user is in one group with (group length: 2)
+    - /group/add_friend
+        * Send friend request to the user with the given email
+        * POST params
+            - email

@@ -1,24 +1,19 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const userRoutes = express.Router();
 const dbo = require("../db/conn");
 const ObjectId = require("mongodb").ObjectId;
-const wrongDBMsg = "Sorry! There is something wrong with our database.";
+const { wrongDBMsg, wrongUserIdMsg } = require("./_utils");
+const userRoutes = express.Router();
 
 
-// List settings for user
 userRoutes.route("/user/settings").post((req, res, next) => {
-  req
-    .checkBody("id", "...")
+  req.checkBody("id", wrongUserIdMsg)
     .isLength({ min: 3 });
-  req
-    .checkBody("first_name", "The First Name field cannot be empty.")
+  req.checkBody("first_name", "The First Name field cannot be empty.")
     .isLength({ min: 3 });
-  req
-    .checkBody("last_name", "The Last Name field cannot be empty.")
+  req.checkBody("last_name", "The Last Name field cannot be empty.")
     .isLength({ min: 3 });
-  req
-    .checkBody("old_password", "You must type in your old Password to make changes happen.")
+  req.checkBody("old_password", "You must type in your old Password to make changes happen.")
     .isLength({ min: 3 });
 
   const errors = req.validationErrors();
@@ -31,6 +26,7 @@ userRoutes.route("/user/settings").post((req, res, next) => {
     last_name: req.body.last_name
   };
 
+  // Get the hash for the new password
   if (req.body.new_password) {
     bcrypt.genSalt(10, (err, salt) => {
       bcrypt.hash(req.body.new_password, salt, (err, hash) => {
@@ -39,70 +35,53 @@ userRoutes.route("/user/settings").post((req, res, next) => {
     });
   }
 
-  let db_connect = dbo.getDb();
-  db_connect
-    .collection("user")
-    .findOne({ _id: new ObjectId(req.body.id) }, (err, result) => {
+  const db = dbo.getDb();
+  db.collection("user")
+    .findOne({ _id: new ObjectId(req.body.id) }, (err, foundUser) => {
         if (err) {
-          res.json({appStatus: 0, msg: wrongDBMsg});
-          return next(err);
+          return res.json({appStatus: 0, msg: wrongDBMsg});
         } 
-        if (!result) {
-            res.json({appStatus: 0, msg: "No user found with these credentials"});
-            return next(err);
+        if (!foundUser) {
+          return res.json({appStatus: 0, msg: "No user found with these credentials"});
         }
         else {
-          const updateUser = (err) => {
+          
+          const updateUserCallback = (err) => {
             if (err) {
-                res.json({appStatus: 0, msg: wrongDBMsg});
-                return next(err);
+              return res.json({appStatus: 0, msg: wrongDBMsg});
             }
-            return res.json({appStatus: 1});
+            return res.json({appStatus: 1, msg: "Changes successfully saved!"});
           }
+
           const checkPwd = (err, isMatch) => {
               if (err) {
                 res.json({appStatus: 0, msg: "Invalid password"});
                 return next(err);
               }
               if (isMatch) {
+
                 // Matched with the input password
-                return db_connect
+                return db
                   .collection("user")
                   .updateOne(
                     { _id: new ObjectId(req.body.id) },
                     { $set: updatedColumns },
-                    updateUser
+                    updateUserCallback
                   );
               }
               else {
                 res.json({appStatus: 0, msg: "Wrong password"});
               }
           };
-          bcrypt.compare(req.body.old_password, result.password, checkPwd);
+
+          return bcrypt.compare(req.body.old_password, foundUser.password, checkPwd);
         }
         
     });
 });
 
-// List all users
-userRoutes.route("/users").get((req, res, next) => {
-  let db_connect = dbo.getDb();
-  db_connect
-    .collection("user")
-    .find({})
-    .toArray(function (err, result) {
-        if (err) {
-          res.json({appStatus: 0, msg: wrongDBMsg});
-          return next(err);
-        } 
-        res.json({appStatus: 1, ...result});
-    });
-});
-
-// Find user by id
 userRoutes.route("/user").post((req, res, next) => {
-  req
-    .checkBody("id", "...")
+  req.checkBody("id", wrongUserIdMsg)
     .isLength({ min: 3 });
   
   const errors = req.validationErrors();
@@ -110,68 +89,57 @@ userRoutes.route("/user").post((req, res, next) => {
     return res.json({appStatus: 0, msg: errors[0].msg});
   }
 
-  let db_connect = dbo.getDb();
-  db_connect
-    .collection("user")
-    .findOne({ _id: new ObjectId(req.body.id) }, (err, result) => {
+  const db = dbo.getDb();
+  db.collection("user")
+    .findOne({ _id: new ObjectId(req.body.id) }, (err, foundUser) => {
       if (err) {
-        res.json({appStatus: 0, msg: wrongDBMsg});
-        return next(err);
+        return res.json({appStatus: 0, msg: wrongDBMsg});
       } 
-      res.json({appStatus: 1, result: result});
+      return res.json({appStatus: 1, result: foundUser});
   });
 });
 
 userRoutes.route("/user/signin").post((req, res, next) => {
-  req
-    .checkBody("email", "The email field cannot be empty.")
+  req.checkBody("email", "The email field cannot be empty.")
     .isEmail();
-  req
-    .checkBody("password", "The password field cannot be empty.")
+  req.checkBody("password", "The password field cannot be empty.")
     .isLength({ min: 3 });
 
-  let errors = req.validationErrors();
+  const errors = req.validationErrors();
   if (errors) {
     return res.json({appStatus: 0, msg: errors[0].msg});
   }
 
-  let db_connect = dbo.getDb();
-  let myquery = { email: req.body.email };
+  const db = dbo.getDb();
+  const userQuery = { email: req.body.email };
 
-  db_connect
-    .collection("user")
-    .findOne(myquery, (err, result) => {
+  db.collection("user")
+    .findOne(userQuery, (err, result) => {
       if (err) {
-        res.json({appStatus: 0, msg: wrongDBMsg});
-        return next(err);
+        return res.json({appStatus: 0, msg: wrongDBMsg});
       }
 
       // Check if passwords are the same
-      db_connect
+      db
         .collection("user")
-        .findOne({ email: req.body.email }, (err, result) => {
-          if (err) {
-            res.json({appStatus: 0, msg: "Wrong email or password"});
-            return next(err);
-          }
-          if (!result) {
-            res.json({appStatus: 0, msg: "No user found with this email"});
-            return next(err);
+        .findOne(userQuery, (err, result) => {
+          if (err || !result) {
+            return res.json({appStatus: 0, msg: "Wrong email or password"});
           }
 
-          const checkPwd = (err, isMatch) => {
+          const checkPwdCallback = (err, isMatch) => {
               if (err) {
-                res.json({appStatus: 0, msg: "Invalid email or password"});
-                return next(err);
+                return res.json({appStatus: 0, msg: "Invalid email or password"});
               }
               if (isMatch) {
                 return res.json({appStatus: 1, token: result});
               }
               else {
-                res.json({appStatus: 0, msg: "Wrong email or password"});
+                return res.json({appStatus: 0, msg: "Wrong email or password"});
               }
           };
-          bcrypt.compare(req.body.password, result.password, checkPwd);
+
+          bcrypt.compare(req.body.password, result.password, checkPwdCallback);
         });
 
     });
@@ -179,27 +147,21 @@ userRoutes.route("/user/signin").post((req, res, next) => {
 
 // This section will help you create a new record.
 userRoutes.route("/user/signup").post((req, response, next) => {
-  req
-    .checkBody("first_name", "The First Name field cannot be empty.")
+  req.checkBody("first_name", "The First Name field cannot be empty.")
     .isLength({ min: 3 });
-  req
-    .checkBody("last_name", "The Last Name field cannot be empty.")
+  req.checkBody("last_name", "The Last Name field cannot be empty.")
     .isLength({ min: 3 });
-  req
-    .checkBody("password", "The Password field cannot be empty.")
+  req.checkBody("password", "The Password field cannot be empty.")
     .isLength({ min: 3 });
-  req
-    .checkBody("password2", "The Second password field cannot be empty.")
+  req.checkBody("password2", "The Second password field cannot be empty.")
     .isLength({ min: 3 });
-  req
-    .checkBody("email", "The Email field cannot be empty.")
+  req.checkBody("email", "The Email field cannot be empty.")
     .isLength({ min: 3 })
     .isEmail();
-  req
-    .checkBody("birthday", "The Birthday field cannot be empty.")
+  req.checkBody("birthday", "The Birthday field cannot be empty.")
     .isLength({ min: 8 });
 
-  let errors = req.validationErrors();
+  const errors = req.validationErrors();
   if (errors) {
     return response.json({appStatus: 0, msg: errors[0].msg});
   }
@@ -207,7 +169,7 @@ userRoutes.route("/user/signup").post((req, response, next) => {
     return response.json({appStatus: 0, msg: "The two passwords must match"});
   }
 
-  let db_connect = dbo.getDb();
+  const db = dbo.getDb();
   let newUser = {
     first_name: req.body.first_name,
     last_name: req.body.last_name,
@@ -217,8 +179,7 @@ userRoutes.route("/user/signup").post((req, response, next) => {
   };
 
   // Check if there is a user with this email
-  db_connect
-    .collection("user")
+  db.collection("user")
     .findOne({ email: newUser.email }, (err, res) => {
       if (err) {
         response.json({appStatus: 0, msg: wrongDBMsg});
@@ -234,7 +195,7 @@ userRoutes.route("/user/signup").post((req, response, next) => {
           newUser.password = hash;
 
           // Save user
-          db_connect
+          db
             .collection("user")
             .insertOne(newUser, (err, res) => {
               if (err) {
@@ -253,28 +214,5 @@ userRoutes.route("/user/signup").post((req, response, next) => {
       }
     });
 });
-
-// This section will help you update a record by id.
-userRoutes.route("/user/update/:id").post((req, response, next) => {
-  let db_connect = dbo.getDb(); 
-  let myquery = { _id: new ObjectId( req.params.id )}; 
-  let newvalues = {   
-    $set: {
-      first_name: req.body.first_name,
-      last_name: req.body.last_name,
-      password: req.body.password,
-      email: req.body.email,
-      birthday: req.body.birthday,
-    }, 
-  }
-  db_connect.collection("user").updateOne(myquery, newvalues, (err, res) => {
-    if (err) {
-      response.json({appStatus: 0, msg: wrongDBMsg});
-      return next(err);
-    }
-    response.json({appStatus: 1});
-  });
-});
-
 
 module.exports = userRoutes;
